@@ -219,7 +219,13 @@ func (p *ConnPool) Get(host string, port uint16) (*TLSConn, error) {
 }
 
 func (p *ConnPool) Put(conn *TLSConn, port uint16) {
-	if conn == nil || conn.closed {
+	if conn == nil {
+		return
+	}
+	conn.mu.Lock()
+	closed := conn.closed
+	conn.mu.Unlock()
+	if closed {
 		return
 	}
 	key := fmt.Sprintf("%s:%d", conn.host, port)

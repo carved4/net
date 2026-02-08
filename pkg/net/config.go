@@ -1,6 +1,7 @@
 package net
 
 import (
+	"runtime"
 	"sync"
 	"unsafe"
 
@@ -91,6 +92,7 @@ func readRegistryUA() string {
 		uintptr(unsafe.Pointer(&keyHandle)),
 		uintptr(KEY_READ),
 		uintptr(unsafe.Pointer(&objectAttrs)))
+	runtime.KeepAlive(keyPathW)
 
 	if ret != STATUS_SUCCESS {
 		return ""
@@ -124,6 +126,7 @@ func readRegistryUA() string {
 		uintptr(unsafe.Pointer(&resultLen)))
 
 	if resultLen == 0 || resultLen > 4096 {
+		runtime.KeepAlive(valueNameW)
 		return ""
 	}
 
@@ -135,6 +138,8 @@ func readRegistryUA() string {
 		uintptr(unsafe.Pointer(&buf[0])),
 		uintptr(resultLen),
 		uintptr(unsafe.Pointer(&resultLen)))
+	runtime.KeepAlive(valueNameW)
+	runtime.KeepAlive(buf)
 
 	if ret != STATUS_SUCCESS {
 		return ""

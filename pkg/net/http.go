@@ -106,7 +106,11 @@ func (c *HTTPClient) Do(req *HTTPRequest) (*HTTPResponse, error) {
 		}
 		if redirectURL != "" {
 			if strings.HasPrefix(redirectURL, "/") {
-				redirectURL = "https://" + host + redirectURL
+				if port != 443 {
+					redirectURL = fmt.Sprintf("https://%s:%d%s", host, port, redirectURL)
+				} else {
+					redirectURL = "https://" + host + redirectURL
+				}
 			}
 			currentURL = redirectURL
 			continue

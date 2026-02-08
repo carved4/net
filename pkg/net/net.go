@@ -1124,7 +1124,11 @@ func DownloadToMemory(url string) ([]byte, error) {
 				return nil, fmt.Errorf("HTTP %d redirect with no Location header", statusCode)
 			}
 			if strings.HasPrefix(location, "/") {
-				location = "https://" + host + location
+				if port != 443 {
+					location = fmt.Sprintf("https://%s:%d%s", host, port, location)
+				} else {
+					location = "https://" + host + location
+				}
 			}
 			currentURL = location
 			continue
