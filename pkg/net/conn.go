@@ -2,6 +2,7 @@ package net
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	wc "github.com/carved4/go-wincall"
@@ -94,7 +95,7 @@ func (c *TLSConn) Recv() ([]byte, error) {
 	if c.closed {
 		return nil, errors.New("connection closed")
 	}
-	return tlsRecv(c.tlsClient, c.sock)
+	return tlsRecvRaw(c.tlsClient, c.sock)
 }
 
 func (c *TLSConn) Close() {
@@ -206,7 +207,7 @@ func NewConnPool(config *ClientConfig) *ConnPool {
 }
 
 func (p *ConnPool) Get(host string, port uint16) (*TLSConn, error) {
-	key := host + ":" + string(rune(port))
+	key := fmt.Sprintf("%s:%d", host, port)
 	p.mu.Lock()
 	if conn, ok := p.conns[key]; ok {
 		delete(p.conns, key)
@@ -221,7 +222,7 @@ func (p *ConnPool) Put(conn *TLSConn, port uint16) {
 	if conn == nil || conn.closed {
 		return
 	}
-	key := conn.host + ":" + string(rune(port))
+	key := fmt.Sprintf("%s:%d", conn.host, port)
 	p.mu.Lock()
 	if existing, ok := p.conns[key]; ok {
 		existing.Close()

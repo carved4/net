@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
+	"sync"
 	"unsafe"
 
 	wc "github.com/carved4/go-wincall"
@@ -273,25 +274,32 @@ var (
 
 var sspiTable *SecurityFunctionTableW
 
+var (
+	sspiOnce    sync.Once
+	sspiInitErr error
+)
+
 func initSSPI() error {
-	if sspiTable != nil {
-		return nil
-	}
-	wc.LoadLibraryLdr("sspicli.dll")
-	base := wc.GetModuleBase(wc.GetHash("sspicli.dll"))
-	if base == 0 {
-		return errors.New("failed to load sspicli.dll")
-	}
-	initSecIfaceW := wc.GetFunctionAddress(base, wc.GetHash("InitSecurityInterfaceW"))
-	if initSecIfaceW == 0 {
-		return errors.New("InitSecurityInterfaceW not found")
-	}
-	tablePtr, _, _ := wc.CallG0(initSecIfaceW)
-	if tablePtr == 0 {
-		return errors.New("InitSecurityInterfaceW returned NULL")
-	}
-	sspiTable = (*SecurityFunctionTableW)(unsafe.Pointer(tablePtr))
-	return nil
+	sspiOnce.Do(func() {
+		wc.LoadLibraryLdr("sspicli.dll")
+		base := wc.GetModuleBase(wc.GetHash("sspicli.dll"))
+		if base == 0 {
+			sspiInitErr = errors.New("failed to load sspicli.dll")
+			return
+		}
+		initSecIfaceW := wc.GetFunctionAddress(base, wc.GetHash("InitSecurityInterfaceW"))
+		if initSecIfaceW == 0 {
+			sspiInitErr = errors.New("InitSecurityInterfaceW not found")
+			return
+		}
+		tablePtr, _, _ := wc.CallG0(initSecIfaceW)
+		if tablePtr == 0 {
+			sspiInitErr = errors.New("InitSecurityInterfaceW returned NULL")
+			return
+		}
+		sspiTable = (*SecurityFunctionTableW)(unsafe.Pointer(tablePtr))
+	})
+	return sspiInitErr
 }
 
 var (
@@ -299,28 +307,32 @@ var (
 	certVerifyCertificateChainPolicy uintptr
 	certFreeCertificateChain         uintptr
 	certFreeCertificateContext       uintptr
-	crypt32Resolved                  bool
+)
+
+var (
+	crypt32Once    sync.Once
+	crypt32InitErr error
 )
 
 func initCrypt32() error {
-	if crypt32Resolved {
-		return nil
-	}
-	wc.LoadLibraryLdr("crypt32.dll")
-	base := wc.GetModuleBase(wc.GetHash("crypt32.dll"))
-	if base == 0 {
-		return errors.New("failed to load crypt32.dll")
-	}
-	certGetCertificateChain = wc.GetFunctionAddress(base, wc.GetHash("CertGetCertificateChain"))
-	certVerifyCertificateChainPolicy = wc.GetFunctionAddress(base, wc.GetHash("CertVerifyCertificateChainPolicy"))
-	certFreeCertificateChain = wc.GetFunctionAddress(base, wc.GetHash("CertFreeCertificateChain"))
-	certFreeCertificateContext = wc.GetFunctionAddress(base, wc.GetHash("CertFreeCertificateContext"))
-	if certGetCertificateChain == 0 || certVerifyCertificateChainPolicy == 0 ||
-		certFreeCertificateChain == 0 || certFreeCertificateContext == 0 {
-		return errors.New("failed to resolve crypt32 functions")
-	}
-	crypt32Resolved = true
-	return nil
+	crypt32Once.Do(func() {
+		wc.LoadLibraryLdr("crypt32.dll")
+		base := wc.GetModuleBase(wc.GetHash("crypt32.dll"))
+		if base == 0 {
+			crypt32InitErr = errors.New("failed to load crypt32.dll")
+			return
+		}
+		certGetCertificateChain = wc.GetFunctionAddress(base, wc.GetHash("CertGetCertificateChain"))
+		certVerifyCertificateChainPolicy = wc.GetFunctionAddress(base, wc.GetHash("CertVerifyCertificateChainPolicy"))
+		certFreeCertificateChain = wc.GetFunctionAddress(base, wc.GetHash("CertFreeCertificateChain"))
+		certFreeCertificateContext = wc.GetFunctionAddress(base, wc.GetHash("CertFreeCertificateContext"))
+		if certGetCertificateChain == 0 || certVerifyCertificateChainPolicy == 0 ||
+			certFreeCertificateChain == 0 || certFreeCertificateContext == 0 {
+			crypt32InitErr = errors.New("failed to resolve crypt32 functions")
+			return
+		}
+	})
+	return crypt32InitErr
 }
 
 
@@ -817,6 +829,89 @@ func tlsRecv(client *TLSClient, sock *afdSocket) ([]byte, error) {
 	return response, nil
 }
 
+func tlsRecvRaw(client *TLSClient, sock *afdSocket) ([]byte, error) {
+	var networkBuf []byte
+	var response []byte
+	recvBuf := make([]byte, 8192)
+
+	for {
+		n, err := sock.Recv(recvBuf)
+		if err != nil && n == 0 {
+			if len(response) > 0 {
+				return response, nil
+			}
+			return nil, fmt.Errorf("tls recv: %w", err)
+		}
+		if n > 0 {
+			networkBuf = append(networkBuf, recvBuf[:n]...)
+		}
+
+		for len(networkBuf) > 0 {
+			secBufs := new([4]SecBuffer)
+			secBufs[0] = SecBuffer{CbBuffer: uint32(len(networkBuf)), BufferType: SECBUFFER_DATA, PvBuffer: uintptr(unsafe.Pointer(&networkBuf[0]))}
+			secBufs[1] = SecBuffer{BufferType: SECBUFFER_EMPTY}
+			secBufs[2] = SecBuffer{BufferType: SECBUFFER_EMPTY}
+			secBufs[3] = SecBuffer{BufferType: SECBUFFER_EMPTY}
+			desc := &SecBufferDesc{UlVersion: SECBUFFER_VERSION, CBuffers: 4, PBuffers: &secBufs[0]}
+
+			ret, _, _ := wc.CallG0(sspiTable.DecryptMessage,
+				uintptr(unsafe.Pointer(&client.ContextHandle)),
+				uintptr(unsafe.Pointer(desc)),
+				0, 0)
+			ss := int32(ret)
+
+			if ss == SEC_E_INCOMPLETE_MESSAGE {
+				break
+			}
+			if ret == uintptr(uint32(SEC_I_CONTEXT_EXPIRED)) {
+				return response, nil
+			}
+			if ss != SEC_E_OK && ret != uintptr(uint32(SEC_I_RENEGOTIATE)) {
+				if len(response) > 0 {
+					return response, nil
+				}
+				return nil, fmt.Errorf("DecryptMessage failed: 0x%x", ret)
+			}
+
+			for i := 0; i < 4; i++ {
+				if secBufs[i].BufferType == SECBUFFER_DATA && secBufs[i].CbBuffer > 0 {
+					decrypted := unsafe.Slice((*byte)(unsafe.Pointer(secBufs[i].PvBuffer)), secBufs[i].CbBuffer)
+					response = append(response, decrypted...)
+				}
+			}
+
+			if ret == uintptr(uint32(SEC_I_RENEGOTIATE)) {
+				if len(response) > 0 {
+					return response, nil
+				}
+				return nil, errors.New("tls renegotiation not supported")
+			}
+
+			var extraBuf []byte
+			for i := 0; i < 4; i++ {
+				if secBufs[i].BufferType == SECBUFFER_EXTRA && secBufs[i].CbBuffer > 0 {
+					extraBuf = make([]byte, secBufs[i].CbBuffer)
+					copy(extraBuf, unsafe.Slice((*byte)(unsafe.Pointer(secBufs[i].PvBuffer)), secBufs[i].CbBuffer))
+					break
+				}
+			}
+			networkBuf = extraBuf
+
+			runtime.KeepAlive(secBufs)
+			runtime.KeepAlive(desc)
+		}
+
+		if len(response) > 0 {
+			return response, nil
+		}
+
+		if n == 0 {
+			break
+		}
+	}
+	return response, nil
+}
+
 func isChunkedResponse(header []byte) bool {
 	s := strings.ToLower(string(header))
 	return strings.Contains(s, "transfer-encoding:") && strings.Contains(s, "chunked")
@@ -906,29 +1001,48 @@ func parseLocationHeader(header []byte) string {
 	return ""
 }
 
-func parseURL(url string) (host, path string, err error) {
-	if strings.HasPrefix(url, "https://") {
-		remaining := url[8:]
+func parseURL(rawURL string) (host string, port uint16, path string, err error) {
+	if strings.HasPrefix(rawURL, "https://") {
+		remaining := rawURL[8:]
+		var hostPort string
 		if idx := strings.IndexByte(remaining, '/'); idx == -1 {
-			host = remaining
+			hostPort = remaining
 			path = "/"
 		} else {
-			host = remaining[:idx]
+			hostPort = remaining[:idx]
 			path = remaining[idx:]
 		}
-		return host, path, nil
+		if colonIdx := strings.LastIndexByte(hostPort, ':'); colonIdx != -1 {
+			host = hostPort[:colonIdx]
+			portStr := hostPort[colonIdx+1:]
+			p := 0
+			for _, c := range portStr {
+				if c < '0' || c > '9' {
+					return "", 0, "", fmt.Errorf("invalid port in URL: %s", rawURL)
+				}
+				p = p*10 + int(c-'0')
+			}
+			if p <= 0 || p > 65535 {
+				return "", 0, "", fmt.Errorf("invalid port number: %d", p)
+			}
+			port = uint16(p)
+		} else {
+			host = hostPort
+			port = 443
+		}
+		return host, port, path, nil
 	}
-	if strings.HasPrefix(url, "http://") {
-		return "", "", fmt.Errorf("http:// not supported, only https://")
+	if strings.HasPrefix(rawURL, "http://") {
+		return "", 0, "", fmt.Errorf("http:// not supported, only https://")
 	}
-	return "", "", fmt.Errorf("invalid URL scheme: %s", url)
+	return "", 0, "", fmt.Errorf("invalid URL scheme: %s", rawURL)
 }
 
 func buildHTTPGetRequest(host, path string) []byte {
 	return []byte(fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nAccept: */*\r\nConnection: close\r\n\r\n", path, host))
 }
 
-func httpsGet(host, path string) ([]byte, error) {
+func httpsGet(host string, port uint16, path string) ([]byte, error) {
 	ip, err := dnsResolve(host)
 	if err != nil {
 		return nil, fmt.Errorf("dns resolve %q: %w", host, err)
@@ -942,7 +1056,7 @@ func httpsGet(host, path string) ([]byte, error) {
 	if err := sock.Bind(); err != nil {
 		return nil, fmt.Errorf("bind: %w", err)
 	}
-	if err := sock.Connect(ip, 443); err != nil {
+	if err := sock.Connect(ip, port); err != nil {
 		return nil, fmt.Errorf("connect: %w", err)
 	}
 
@@ -984,11 +1098,11 @@ func DownloadToMemory(url string) ([]byte, error) {
 	currentURL := url
 
 	for attempt := 0; attempt <= maxRedirects; attempt++ {
-		host, path, err := parseURL(currentURL)
+		host, port, path, err := parseURL(currentURL)
 		if err != nil {
 			return nil, err
 		}
-		rawResp, err := httpsGet(host, path)
+		rawResp, err := httpsGet(host, port, path)
 		if err != nil {
 			return nil, err
 		}
@@ -1024,6 +1138,20 @@ func DownloadToMemory(url string) ([]byte, error) {
 		if len(body) == 0 {
 			return nil, errors.New("no body in HTTP response")
 		}
+
+		headerStr := string(headerBytes)
+		var te, ce string
+		for _, line := range strings.Split(headerStr, "\r\n") {
+			lower := strings.ToLower(line)
+			if strings.HasPrefix(lower, "transfer-encoding:") {
+				te = strings.TrimSpace(line[len("transfer-encoding:"):])
+			}
+			if strings.HasPrefix(lower, "content-encoding:") {
+				ce = strings.TrimSpace(line[len("content-encoding:"):])
+			}
+		}
+		body = decodeBody(body, te, ce)
+
 		return body, nil
 	}
 

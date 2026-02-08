@@ -3,6 +3,7 @@ package net
 import (
 	"fmt"
 	"runtime"
+	"sync"
 	"unsafe"
 
 	wc "github.com/carved4/go-wincall"
@@ -255,6 +256,7 @@ func (s *afdUDPSocket) Recv(buf []byte) (int, error) {
 type ConnectedUDPConn struct {
 	sock   *afdUDPSocket
 	closed bool
+	mu     sync.Mutex
 }
 
 func DialUDPConnected(host string, port uint16, config *ClientConfig) (*ConnectedUDPConn, error) {
@@ -291,6 +293,8 @@ func DialUDPConnectedIP(ip uint32, port uint16) (*ConnectedUDPConn, error) {
 }
 
 func (c *ConnectedUDPConn) Send(data []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.closed {
 		return fmt.Errorf("connection closed")
 	}
@@ -298,6 +302,8 @@ func (c *ConnectedUDPConn) Send(data []byte) error {
 }
 
 func (c *ConnectedUDPConn) Recv(buf []byte) (int, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.closed {
 		return 0, fmt.Errorf("connection closed")
 	}
@@ -305,6 +311,8 @@ func (c *ConnectedUDPConn) Recv(buf []byte) (int, error) {
 }
 
 func (c *ConnectedUDPConn) Close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.closed {
 		return
 	}

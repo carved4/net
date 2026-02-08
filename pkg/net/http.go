@@ -42,6 +42,7 @@ type HTTPRequest struct {
 	Method  HTTPMethod
 	URL     string
 	Host    string
+	Port    uint16
 	Path    string
 	Headers map[string]string
 	Body    []byte
@@ -91,11 +92,12 @@ func (c *HTTPClient) Do(req *HTTPRequest) (*HTTPResponse, error) {
 
 	currentURL := req.URL
 	for attempt := 0; attempt <= c.config.HTTP.MaxRedirects; attempt++ {
-		host, path, err := parseURL(currentURL)
+		host, port, path, err := parseURL(currentURL)
 		if err != nil {
 			return nil, newNetError(ErrHTTPParse, "parse url", err)
 		}
 		req.Host = host
+		req.Port = port
 		req.Path = path
 
 		resp, redirectURL, err := c.doRequest(req)
@@ -129,7 +131,7 @@ func (c *HTTPClient) doRequest(req *HTTPRequest) (*HTTPResponse, string, error) 
 	if err := sock.Bind(); err != nil {
 		return nil, "", newNetError(ErrSocketBind, "socket bind", err)
 	}
-	if err := sock.Connect(ip, 443); err != nil {
+	if err := sock.Connect(ip, req.Port); err != nil {
 		return nil, "", newNetError(ErrConnection, "connect", err)
 	}
 

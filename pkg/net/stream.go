@@ -5,6 +5,7 @@ import (
 	"io"
 	"runtime"
 	"strings"
+	"sync"
 
 	wc "github.com/carved4/go-wincall"
 )
@@ -14,6 +15,7 @@ type StreamConn struct {
 	tlsClient *TLSClient
 	host      string
 	closed    bool
+	mu        sync.Mutex
 }
 
 func DialStream(url string, config *ClientConfig) (*StreamConn, string, error) {
@@ -28,7 +30,7 @@ func DialStream(url string, config *ClientConfig) (*StreamConn, string, error) {
 		return nil, "", newNetError(ErrCrypt32Init, "crypt32 init", err)
 	}
 
-	host, path, err := parseURL(url)
+	host, port, path, err := parseURL(url)
 	if err != nil {
 		return nil, "", newNetError(ErrHTTPParse, "parse url", err)
 	}
@@ -48,7 +50,7 @@ func DialStream(url string, config *ClientConfig) (*StreamConn, string, error) {
 		sock.Close()
 		return nil, "", newNetError(ErrSocketBind, "socket bind", err)
 	}
-	if err := sock.Connect(ip, 443); err != nil {
+	if err := sock.Connect(ip, port); err != nil {
 		sock.Close()
 		return nil, "", newNetError(ErrConnection, "connect", err)
 	}
@@ -86,6 +88,8 @@ func DialStream(url string, config *ClientConfig) (*StreamConn, string, error) {
 }
 
 func (c *StreamConn) Close() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if c.closed {
 		return
 	}
@@ -95,6 +99,11 @@ func (c *StreamConn) Close() {
 }
 
 func (c *StreamConn) SendChunkedRequest(method, path string, headers map[string]string, bodyReader io.Reader, userAgent string) (*HTTPResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return nil, newNetError(ErrSocketSend, "connection closed", nil)
+	}
 	var sb strings.Builder
 	sb.WriteString(method)
 	sb.WriteString(" ")
@@ -164,6 +173,11 @@ func (c *StreamConn) SendChunkedRequest(method, path string, headers map[string]
 }
 
 func (c *StreamConn) SendRequest(method, path string, headers map[string]string, body []byte, userAgent string) (*HTTPResponse, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.closed {
+		return nil, newNetError(ErrSocketSend, "connection closed", nil)
+	}
 	var sb strings.Builder
 	sb.WriteString(method)
 	sb.WriteString(" ")

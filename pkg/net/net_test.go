@@ -307,7 +307,7 @@ func TestDownloadToMemory_EmptyURL(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHttpsGet_ExampleCom(t *testing.T) {
-	rawResp, err := httpsGet("example.com", "/")
+	rawResp, err := httpsGet("example.com", 443, "/")
 	if err != nil {
 		t.Fatalf("httpsGet: %v", err)
 	}
@@ -326,7 +326,7 @@ func TestHttpsGet_ExampleCom(t *testing.T) {
 }
 
 func TestHttpsGet_404(t *testing.T) {
-	rawResp, err := httpsGet("httpbin.org", "/status/404")
+	rawResp, err := httpsGet("httpbin.org", 443, "/status/404")
 	if err != nil {
 		t.Fatalf("httpsGet: %v", err)
 	}

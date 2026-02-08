@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"runtime"
+	"sync"
 	"unsafe"
 
 	wc "github.com/carved4/go-wincall"
@@ -14,21 +15,27 @@ var (
 	dnsFree   uintptr
 )
 
+var (
+	dnsOnce    sync.Once
+	dnsInitErr error
+)
+
 func initDnsApi() error {
-	if dnsQueryW != 0 {
-		return nil
-	}
-	wc.LoadLibraryLdr("dnsapi.dll")
-	base := wc.GetModuleBase(wc.GetHash("dnsapi.dll"))
-	if base == 0 {
-		return errors.New("failed to load dnsapi.dll")
-	}
-	dnsQueryW = wc.GetFunctionAddress(base, wc.GetHash("DnsQuery_W"))
-	dnsFree = wc.GetFunctionAddress(base, wc.GetHash("DnsFree"))
-	if dnsQueryW == 0 || dnsFree == 0 {
-		return errors.New("failed to resolve dnsapi functions")
-	}
-	return nil
+	dnsOnce.Do(func() {
+		wc.LoadLibraryLdr("dnsapi.dll")
+		base := wc.GetModuleBase(wc.GetHash("dnsapi.dll"))
+		if base == 0 {
+			dnsInitErr = errors.New("failed to load dnsapi.dll")
+			return
+		}
+		dnsQueryW = wc.GetFunctionAddress(base, wc.GetHash("DnsQuery_W"))
+		dnsFree = wc.GetFunctionAddress(base, wc.GetHash("DnsFree"))
+		if dnsQueryW == 0 || dnsFree == 0 {
+			dnsInitErr = errors.New("failed to resolve dnsapi functions")
+			return
+		}
+	})
+	return dnsInitErr
 }
 
 func dnsResolve(hostname string) (uint32, error) {
