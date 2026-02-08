@@ -1,5 +1,7 @@
 package net
 
+import "io"
+
 type Config struct {
 	UserAgent string
 	Headers   map[string]string
@@ -19,6 +21,14 @@ func Post(url string, body []byte, config *Config) ([]byte, error) {
 	cc := toClientConfig(config)
 	client := NewHTTPClient(cc)
 	resp, err := client.Post(url, body)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Body, nil
+}
+
+func PostWithReader(url string, headers map[string]string, bodyReader io.Reader, config *Config) ([]byte, error) {
+	resp, err := PostChunked(url, headers, bodyReader, config)
 	if err != nil {
 		return nil, err
 	}
