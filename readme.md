@@ -57,6 +57,12 @@ body, err := net.Post("https://httpbin.org/post", []byte(`{"key":"value"}`), &ne
         "Content-Type": "application/json",
     },
 })
+
+// post with io.Reader (uses chunked transfer encoding)
+reader := strings.NewReader("streaming data")
+body, err := net.PostWithReader("https://httpbin.org/post", 
+    map[string]string{"Content-Type": "text/plain"}, 
+    reader, nil)
 ```
 
 ### dns resolution
@@ -93,6 +99,37 @@ defer conn.Close()
 conn.Send([]byte("GET / HTTP/1.1\r\nHost: example.com\r\n\r\n"))
 buf := make([]byte, 4096)
 n, err := conn.Recv(buf)
+```
+
+### streaming http requests
+
+```go
+// dial a persistent stream connection
+conn, path, err := net.DialStream("https://httpbin.org/post", nil)
+defer conn.Close()
+
+// send regular request with body
+headers := map[string]string{"Content-Type": "application/json"}
+resp, err := conn.SendRequest("POST", path, headers, []byte(`{"key":"value"}`), "MyAgent/1.0")
+
+// send chunked transfer-encoded request
+reader := strings.NewReader("large streaming data")
+resp, err = conn.SendChunkedRequest("POST", path, headers, reader, "MyAgent/1.0")
+```
+
+convenience functions for streaming:
+
+```go
+// post with chunked transfer encoding
+reader := strings.NewReader("chunked body")
+resp, err := net.PostChunked("https://httpbin.org/post", 
+    map[string]string{"Content-Type": "text/plain"}, 
+    reader, nil)
+
+// post via stream connection (connection: close)
+resp, err := net.PostStream("https://httpbin.org/post", 
+    map[string]string{"Content-Type": "text/plain"}, 
+    []byte("body"), nil)
 ```
 
 ### http client with full control
@@ -147,6 +184,10 @@ if err != nil {
 | `Download(url, config)` | download bytes to memory with redirect following |
 | `Get(url, config)` | http get request |
 | `Post(url, body, config)` | http post request |
+| `PostWithReader(url, headers, reader, config)` | post with io.Reader body (chunked transfer) |
+| `PostChunked(url, headers, reader, config)` | post with chunked transfer encoding |
+| `PostStream(url, headers, body, config)` | post via stream connection |
+| `DialStream(url, config)` | dial persistent stream connection for http |
 | `Resolve(hostname)` | resolve hostname to ipv4 |
 | `ResolveAll(hostname)` | resolve hostname to all ipv4 addresses |
 | `Dial(host, port, config)` | dial tls connection |
@@ -190,6 +231,7 @@ pkg/net/
 ├── errors.go    # typed error definitions
 ├── http.go      # http client implementation
 ├── net.go       # afd socket + schannel tls core
+├── stream.go    # streaming http connections + chunked transfer
 ├── udp.go       # udp socket implementation
 └── unsafe.go    # unsafe helpers
 ```
@@ -207,8 +249,3 @@ this library is designed for scenarios where you need:
 ## credits
 
 afd.sys socket code based on work by [@vxunderground](https://x.com/vxunderground)
-
-## license
-
-mit
-
