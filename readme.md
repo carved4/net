@@ -208,7 +208,3 @@ this library is designed for scenarios where you need:
 
 afd.sys socket code based on work by [@vxunderground](https://x.com/vxunderground)
 
-## license
-
-mit
-
