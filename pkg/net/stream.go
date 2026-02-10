@@ -11,11 +11,11 @@ import (
 )
 
 type StreamConn struct {
-	sock      *afdSocket
-	tlsClient *TLSClient
-	host      string
-	closed    bool
-	mu        sync.Mutex
+	sock		*afdSocket
+	tlsClient	*TLSClient
+	host		string
+	closed		bool
+	mu		sync.Mutex
 }
 
 func DialStream(url string, config *ClientConfig) (*StreamConn, string, error) {
@@ -81,9 +81,9 @@ func DialStream(url string, config *ClientConfig) (*StreamConn, string, error) {
 	}
 
 	return &StreamConn{
-		sock:      sock,
-		tlsClient: tlsClient,
-		host:      host,
+		sock:		sock,
+		tlsClient:	tlsClient,
+		host:		host,
 	}, path, nil
 }
 
@@ -252,10 +252,10 @@ func parseStreamResponse(raw []byte) (*HTTPResponse, error) {
 	body = decodeBody(body, te, ce)
 
 	return &HTTPResponse{
-		StatusCode: statusCode,
-		Headers:    headers,
-		Body:       body,
-		RawData:    raw,
+		StatusCode:	statusCode,
+		Headers:	headers,
+		Body:		body,
+		RawData:	raw,
 	}, nil
 }
 

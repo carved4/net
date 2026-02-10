@@ -7,7 +7,7 @@ low-level windows networking library using afd.sys sockets and schannel tls. byp
 - **afd.sys sockets** - raw socket i/o via `\Device\Afd` using ntdeviceiocontrolfile
 - **schannel/sspi tls** - native windows tls with full certificate validation
 - **indirect syscalls** - all nt api calls go through syscall;ret gadgets
-- **dnsquery_w resolution** - uses windows dns api for fast cached lookups
+- **dns resolution** - uses doh to cloudflare and google to resolve dns
 - **dynamic user agent** - reads system ua from registry via ntqueryvaluekey
 - **http encoding** - handles chunked transfer, gzip, and deflate
 - **redirect following** - automatic 301-308 redirect handling

@@ -1,14 +1,9 @@
 package net
 
 import (
-	"encoding/binary"
 	"strings"
 	"testing"
 )
-
-// ---------------------------------------------------------------------------
-// AFD socket creation + close
-// ---------------------------------------------------------------------------
 
 func TestAfdCreateTCPSocket(t *testing.T) {
 	sock, err := afdCreateTCPSocket()
@@ -30,7 +25,7 @@ func TestAfdSocketDoubleClose(t *testing.T) {
 		t.Fatalf("afdCreateTCPSocket: %v", err)
 	}
 	sock.Close()
-	// second close should be a no-op, not panic
+
 	sock.Close()
 	if sock.handle != 0 {
 		t.Error("handle should remain zero after double close")
@@ -47,7 +42,7 @@ func TestAfdCreateMultipleSockets(t *testing.T) {
 		}
 		socks[i] = s
 	}
-	// all handles should be distinct
+
 	seen := map[uintptr]bool{}
 	for i, s := range socks {
 		if seen[s.handle] {
@@ -59,10 +54,6 @@ func TestAfdCreateMultipleSockets(t *testing.T) {
 		s.Close()
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Bind
-// ---------------------------------------------------------------------------
 
 func TestAfdBind(t *testing.T) {
 	sock, err := afdCreateTCPSocket()
@@ -76,10 +67,6 @@ func TestAfdBind(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Connect to a known TCP service (1.1.1.1:53 — Cloudflare DNS over TCP)
-// ---------------------------------------------------------------------------
-
 func TestAfdConnect(t *testing.T) {
 	sock, err := afdCreateTCPSocket()
 	if err != nil {
@@ -91,10 +78,9 @@ func TestAfdConnect(t *testing.T) {
 		t.Fatalf("Bind: %v", err)
 	}
 
-	// 1.1.1.1 in network byte order
 	ip := htonl(0x01010101)
-	if err := sock.Connect(ip, 53); err != nil {
-		t.Fatalf("Connect to 1.1.1.1:53: %v", err)
+	if err := sock.Connect(ip, 443); err != nil {
+		t.Fatalf("Connect to 1.1.1.1:443: %v", err)
 	}
 }
 
@@ -109,7 +95,6 @@ func TestAfdConnectRefused(t *testing.T) {
 		t.Fatalf("Bind: %v", err)
 	}
 
-	// 127.0.0.1 port 1 — almost certainly refused
 	ip := htonl(0x7F000001)
 	err = sock.Connect(ip, 1)
 	if err == nil {
@@ -117,11 +102,7 @@ func TestAfdConnectRefused(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Send + Recv: do a raw DNS query over TCP to 1.1.1.1
-// ---------------------------------------------------------------------------
-
-func TestAfdSendRecv_DNSQuery(t *testing.T) {
+func TestAfdSendRecv_HTTP(t *testing.T) {
 	sock, err := afdCreateTCPSocket()
 	if err != nil {
 		t.Fatalf("afdCreateTCPSocket: %v", err)
@@ -131,80 +112,38 @@ func TestAfdSendRecv_DNSQuery(t *testing.T) {
 	if err := sock.Bind(); err != nil {
 		t.Fatalf("Bind: %v", err)
 	}
-	if err := sock.Connect(htonl(0x01010101), 53); err != nil {
+
+	ip, err := dnsResolve("example.com")
+	if err != nil {
+		t.Fatalf("dnsResolve: %v", err)
+	}
+
+	if err := sock.Connect(ip, 80); err != nil {
 		t.Fatalf("Connect: %v", err)
 	}
 
-	// Build a DNS query for "example.com" A record
-	txID := uint16(0x1234)
-	var msg []byte
-	msg = binary.BigEndian.AppendUint16(msg, txID)
-	msg = binary.BigEndian.AppendUint16(msg, 0x0100) // standard query, RD=1
-	msg = binary.BigEndian.AppendUint16(msg, 1)      // QDCOUNT
-	msg = binary.BigEndian.AppendUint16(msg, 0)
-	msg = binary.BigEndian.AppendUint16(msg, 0)
-	msg = binary.BigEndian.AppendUint16(msg, 0)
-	// QNAME: example.com
-	msg = append(msg, 7, 'e', 'x', 'a', 'm', 'p', 'l', 'e', 3, 'c', 'o', 'm', 0)
-	msg = binary.BigEndian.AppendUint16(msg, 1) // QTYPE A
-	msg = binary.BigEndian.AppendUint16(msg, 1) // QCLASS IN
-
-	// TCP DNS: 2-byte length prefix
-	var lenBuf [2]byte
-	binary.BigEndian.PutUint16(lenBuf[:], uint16(len(msg)))
-	if err := sock.Send(lenBuf[:]); err != nil {
-		t.Fatalf("Send length: %v", err)
-	}
-	if err := sock.Send(msg); err != nil {
-		t.Fatalf("Send msg: %v", err)
+	req := []byte("GET / HTTP/1.1\r\nHost: example.com\r\nConnection: close\r\n\r\n")
+	if err := sock.Send(req); err != nil {
+		t.Fatalf("Send: %v", err)
 	}
 
-	// Read 2-byte response length
-	var respLenBuf [2]byte
-	n, err := sock.Recv(respLenBuf[:])
+	resp := make([]byte, 4096)
+	n, err := sock.Recv(resp)
 	if err != nil {
-		t.Fatalf("Recv length: %v", err)
+		t.Fatalf("Recv: %v", err)
 	}
-	if n != 2 {
-		t.Fatalf("expected 2 bytes for length, got %d", n)
-	}
-	respLen := int(binary.BigEndian.Uint16(respLenBuf[:]))
-	if respLen < 12 {
-		t.Fatalf("response too short: %d", respLen)
+	if n == 0 {
+		t.Fatal("no response received")
 	}
 
-	// Read full response
-	resp := make([]byte, respLen)
-	total := 0
-	for total < respLen {
-		n, err := sock.Recv(resp[total:])
-		if err != nil {
-			t.Fatalf("Recv body: %v", err)
-		}
-		if n == 0 {
-			t.Fatal("connection closed before full response")
-		}
-		total += n
+	respStr := string(resp[:n])
+	if len(respStr) < 12 {
+		t.Fatalf("response too short: %d bytes", n)
 	}
-
-	// Verify we got a valid response
-	respID := binary.BigEndian.Uint16(resp[0:2])
-	if respID != txID {
-		t.Errorf("txID mismatch: got 0x%04X, want 0x%04X", respID, txID)
-	}
-	flags := binary.BigEndian.Uint16(resp[2:4])
-	if flags&0x8000 == 0 {
-		t.Error("QR bit not set in response")
-	}
-	anCount := binary.BigEndian.Uint16(resp[6:8])
-	if anCount == 0 {
-		t.Error("expected at least one answer record")
+	if respStr[:4] != "HTTP" {
+		t.Errorf("expected HTTP response, got: %s", respStr[:min(50, len(respStr))])
 	}
 }
-
-// ---------------------------------------------------------------------------
-// dnsResolve — full DNS resolution through AFD
-// ---------------------------------------------------------------------------
 
 func TestDnsResolve_KnownHost(t *testing.T) {
 	ip, err := dnsResolve("one.one.one.one")
@@ -233,12 +172,8 @@ func TestDnsResolve_GoogleDNS(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Full HTTPS download via DownloadToMemory
-// ---------------------------------------------------------------------------
-
 func TestDownloadToMemory_SmallPage(t *testing.T) {
-	// example.com is a stable, small page served over HTTPS
+
 	body, err := DownloadToMemory("https://example.com")
 	if err != nil {
 		t.Fatalf("DownloadToMemory(example.com): %v", err)
@@ -253,7 +188,7 @@ func TestDownloadToMemory_SmallPage(t *testing.T) {
 }
 
 func TestDownloadToMemory_WithPath(t *testing.T) {
-	// httpbin.org returns JSON; just verify we get data back
+
 	body, err := DownloadToMemory("https://httpbin.org/get")
 	if err != nil {
 		t.Fatalf("DownloadToMemory(httpbin.org/get): %v", err)
@@ -268,9 +203,7 @@ func TestDownloadToMemory_WithPath(t *testing.T) {
 }
 
 func TestDownloadToMemory_Redirect(t *testing.T) {
-	// http://www.example.com typically redirects — but we only support https
-	// Use a known HTTPS redirect: github.com -> somewhere
-	// Instead, test with a URL that we know returns 200 after potential redirects
+
 	body, err := DownloadToMemory("https://www.example.com")
 	if err != nil {
 		t.Fatalf("DownloadToMemory(www.example.com): %v", err)
@@ -302,10 +235,6 @@ func TestDownloadToMemory_EmptyURL(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// httpsGet directly
-// ---------------------------------------------------------------------------
-
 func TestHttpsGet_ExampleCom(t *testing.T) {
 	rawResp, err := httpsGet("example.com", 443, "/")
 	if err != nil {
@@ -314,7 +243,7 @@ func TestHttpsGet_ExampleCom(t *testing.T) {
 	if len(rawResp) == 0 {
 		t.Fatal("expected non-empty response")
 	}
-	// Should contain HTTP headers
+
 	s := string(rawResp)
 	if !strings.Contains(s, "HTTP/1.") {
 		t.Error("response missing HTTP status line")
@@ -340,10 +269,6 @@ func TestHttpsGet_404(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Stress: multiple sequential downloads
-// ---------------------------------------------------------------------------
-
 func TestDownloadToMemory_Sequential(t *testing.T) {
 	urls := []string{
 		"https://example.com",
@@ -362,13 +287,3 @@ func TestDownloadToMemory_Sequential(t *testing.T) {
 	}
 }
 
-// ---------------------------------------------------------------------------
-// helper: min (for Go < 1.21 compat)
-// ---------------------------------------------------------------------------
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}

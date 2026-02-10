@@ -3,8 +3,8 @@ package net
 import "io"
 
 type Config struct {
-	UserAgent string
-	Headers   map[string]string
+	UserAgent	string
+	Headers		map[string]string
 }
 
 func Get(url string, config *Config) ([]byte, error) {
@@ -106,3 +106,4 @@ func GetNetErrorCode(err error) int {
 	}
 	return 0
 }
+

@@ -12,42 +12,42 @@ import (
 )
 
 const (
-	AF_INET     = 2
-	SOCK_STREAM = 1
-	IPPROTO_TCP = 6
+	AF_INET		= 2
+	SOCK_STREAM	= 1
+	IPPROTO_TCP	= 6
 
-	IOCTL_AFD_BIND    = 0x00012003
-	IOCTL_AFD_CONNECT = 0x00012007
-	IOCTL_AFD_SEND    = 0x0001201F
-	IOCTL_AFD_RECV    = 0x00012017
+	IOCTL_AFD_BIND		= 0x00012003
+	IOCTL_AFD_CONNECT	= 0x00012007
+	IOCTL_AFD_SEND		= 0x0001201F
+	IOCTL_AFD_RECV		= 0x00012017
 
-	OBJ_CASE_INSENSITIVE         = 0x00000040
-	FILE_OPEN_IF                 = 0x00000003
-	FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
+	OBJ_CASE_INSENSITIVE		= 0x00000040
+	FILE_OPEN_IF			= 0x00000003
+	FILE_SYNCHRONOUS_IO_NONALERT	= 0x00000020
 
-	EVENT_ALL_ACCESS = 0x1F0003
+	EVENT_ALL_ACCESS	= 0x1F0003
 )
 
 type UNICODE_STRING struct {
-	Length        uint16
-	MaximumLength uint16
-	Buffer        *uint16
+	Length		uint16
+	MaximumLength	uint16
+	Buffer		*uint16
 }
 
 type OBJECT_ATTRIBUTES struct {
-	Length                   uint32
-	_                        uint32 // padding on x64
-	RootDirectory            uintptr
-	ObjectName               *UNICODE_STRING
-	Attributes               uint32
-	_                        uint32 // padding on x64
-	SecurityDescriptor       uintptr
-	SecurityQualityOfService uintptr
+	Length				uint32
+	_				uint32
+	RootDirectory			uintptr
+	ObjectName			*UNICODE_STRING
+	Attributes			uint32
+	_				uint32
+	SecurityDescriptor		uintptr
+	SecurityQualityOfService	uintptr
 }
 
 type IO_STATUS_BLOCK struct {
-	Status      uintptr
-	Information uintptr
+	Status		uintptr
+	Information	uintptr
 }
 
 type IN_ADDR struct {
@@ -55,228 +55,229 @@ type IN_ADDR struct {
 }
 
 type SOCKADDR_IN struct {
-	Sin_family int16
-	Sin_port   uint16
-	Sin_addr   IN_ADDR
-	Sin_zero   [8]byte
+	Sin_family	int16
+	Sin_port	uint16
+	Sin_addr	IN_ADDR
+	Sin_zero	[8]byte
 }
 
 type AFD_OPEN_PACKET_EXTENDED_ATTRIBUTES struct {
-	NextEntryOffset              uint32
-	Flags                        byte
-	ExtendedAttributeNameLength  byte
-	ExtendedAttributeValueLength uint16
-	ExtendedAttributeName        [16]byte
-	EndpointFlags                uint32
-	GroupID                      uint32
-	AddressFamily                uint32
-	SocketType                   uint32
-	Protocol                     uint32
-	SizeOfTransportName          uint32
-	Unknown1                     [9]byte
+	NextEntryOffset			uint32
+	Flags				byte
+	ExtendedAttributeNameLength	byte
+	ExtendedAttributeValueLength	uint16
+	ExtendedAttributeName		[16]byte
+	EndpointFlags			uint32
+	GroupID				uint32
+	AddressFamily			uint32
+	SocketType			uint32
+	Protocol			uint32
+	SizeOfTransportName		uint32
+	Unknown1			[9]byte
 }
 
 type AFD_BIND_SOCKET struct {
-	Flags   uint32
-	Address SOCKADDR_IN
+	Flags	uint32
+	Address	SOCKADDR_IN
 }
 
 type AFD_CONNECT_REQUEST_IPV4 struct {
-	SharedAccessNamespaceActive uint64
-	RootEndpoint                uint64
-	ConnectEndpoint             uint64
-	Address                     SOCKADDR_IN
+	SharedAccessNamespaceActive	uint64
+	RootEndpoint			uint64
+	ConnectEndpoint			uint64
+	Address				SOCKADDR_IN
 }
 
 type AFD_IO_BUFFER struct {
-	Length uint32
-	_      uint32 // padding on x64
-	Buffer uintptr
+	Length	uint32
+	_	uint32
+	Buffer	uintptr
 }
 
 type AFD_TRANSFER_REQUEST struct {
-	Buffer      *AFD_IO_BUFFER
-	BufferCount uint32
-	AfdFlags    uint32
-	TdiFlags    uint32
+	Buffer		*AFD_IO_BUFFER
+	BufferCount	uint32
+	AfdFlags	uint32
+	TdiFlags	uint32
 }
 
 const (
-	SECBUFFER_VERSION        = 0
-	SECBUFFER_EMPTY          = 0
-	SECBUFFER_DATA           = 1
-	SECBUFFER_TOKEN          = 2
-	SECBUFFER_EXTRA          = 5
-	SECBUFFER_STREAM_TRAILER = 6
-	SECBUFFER_STREAM_HEADER  = 7
+	SECBUFFER_VERSION		= 0
+	SECBUFFER_EMPTY			= 0
+	SECBUFFER_DATA			= 1
+	SECBUFFER_TOKEN			= 2
+	SECBUFFER_EXTRA			= 5
+	SECBUFFER_STREAM_TRAILER	= 6
+	SECBUFFER_STREAM_HEADER		= 7
 
-	SECURITY_NATIVE_DREP            = 0x00000010
-	SECPKG_ATTR_STREAM_SIZES        = 4
-	SECPKG_ATTR_REMOTE_CERT_CONTEXT = 0x53
+	SECURITY_NATIVE_DREP		= 0x00000010
+	SECPKG_ATTR_STREAM_SIZES	= 4
+	SECPKG_ATTR_REMOTE_CERT_CONTEXT	= 0x53
 
-	ISC_REQ_REPLAY_DETECT   = 0x00000004
-	ISC_REQ_SEQUENCE_DETECT = 0x00000008
-	ISC_REQ_CONFIDENTIALITY = 0x00000010
-	ISC_REQ_ALLOCATE_MEMORY = 0x00000100
-	ISC_REQ_EXTENDED_ERROR  = 0x00004000
-	ISC_REQ_STREAM          = 0x00008000
+	ISC_REQ_REPLAY_DETECT	= 0x00000004
+	ISC_REQ_SEQUENCE_DETECT	= 0x00000008
+	ISC_REQ_CONFIDENTIALITY	= 0x00000010
+	ISC_REQ_ALLOCATE_MEMORY	= 0x00000100
+	ISC_REQ_EXTENDED_ERROR	= 0x00004000
+	ISC_REQ_STREAM		= 0x00008000
 
-	SCHANNEL_CRED_VERSION = 0x00000004
-	SCHANNEL_SHUTDOWN     = 0x00000001
+	SCHANNEL_CRED_VERSION	= 0x00000004
+	SCHANNEL_SHUTDOWN	= 0x00000001
 
-	SEC_E_OK                 = 0
-	SEC_I_CONTINUE_NEEDED    = 0x00090312
-	SEC_E_INCOMPLETE_MESSAGE = int32(-2146893032) // 0x80090318
-	SEC_I_CONTEXT_EXPIRED    = 0x00090317
-	SEC_I_RENEGOTIATE        = 0x00090321
+	SEC_E_OK			= 0
+	SEC_I_CONTINUE_NEEDED		= 0x00090312
+	SEC_E_INCOMPLETE_MESSAGE	= int32(-2146893032)
+	SEC_I_CONTEXT_EXPIRED		= 0x00090317
+	SEC_I_RENEGOTIATE		= 0x00090321
 
-	AUTHTYPE_SERVER = 1
+	AUTHTYPE_SERVER	= 1
 )
 
 type SecHandle struct {
-	DwLower uintptr
-	DwUpper uintptr
+	DwLower	uintptr
+	DwUpper	uintptr
 }
 
 type SecBuffer struct {
-	CbBuffer   uint32
-	BufferType uint32
-	PvBuffer   uintptr
+	CbBuffer	uint32
+	BufferType	uint32
+	PvBuffer	uintptr
 }
 
 type SecBufferDesc struct {
-	UlVersion uint32
-	CBuffers  uint32
-	PBuffers  *SecBuffer
+	UlVersion	uint32
+	CBuffers	uint32
+	PBuffers	*SecBuffer
 }
 
 type SECURITY_INTEGER struct {
-	LowPart  uint32
-	HighPart uint32
+	LowPart		uint32
+	HighPart	uint32
 }
 
 type SecPkgContext_StreamSizes struct {
-	CbHeader         uint32
-	CbTrailer        uint32
-	CbMaximumMessage uint32
-	CBuffers         uint32
-	CbBlockSize      uint32
+	CbHeader		uint32
+	CbTrailer		uint32
+	CbMaximumMessage	uint32
+	CBuffers		uint32
+	CbBlockSize		uint32
 }
 
 type SCHANNEL_CRED struct {
-	DwVersion               uint32
-	CCreds                  uint32
-	PaCred                  uintptr
-	HRootStore              uintptr
-	CMappers                uint32
-	_                       uint32 // padding
-	AphMappers              uintptr
-	CSupportedAlgs          uint32
-	_                       uint32 // padding
-	PalgSupportedAlgs       uintptr
-	GrbitEnabledProtocols   uint32
-	DwMinimumCipherStrength uint32
-	DwMaximumCipherStrength uint32
-	DwSessionLifespan       uint32
-	DwFlags                 uint32
-	DwCredFormat            uint32
+	DwVersion		uint32
+	CCreds			uint32
+	PaCred			uintptr
+	HRootStore		uintptr
+	CMappers		uint32
+	_			uint32
+	AphMappers		uintptr
+	CSupportedAlgs		uint32
+	_			uint32
+	PalgSupportedAlgs	uintptr
+	GrbitEnabledProtocols	uint32
+	DwMinimumCipherStrength	uint32
+	DwMaximumCipherStrength	uint32
+	DwSessionLifespan	uint32
+	DwFlags			uint32
+	DwCredFormat		uint32
 }
 
 type SecurityFunctionTableW struct {
-	DwVersion                   uint32
-	_                           uint32 // padding
-	EnumerateSecurityPackagesW  uintptr
-	QueryCredentialsAttributesW uintptr
-	AcquireCredentialsHandleW   uintptr
-	FreeCredentialsHandle       uintptr
-	Reserved2                   uintptr
-	InitializeSecurityContextW  uintptr
-	AcceptSecurityContext       uintptr
-	CompleteAuthToken           uintptr
-	DeleteSecurityContext       uintptr
-	ApplyControlToken           uintptr
-	QueryContextAttributesW     uintptr
-	ImpersonateSecurityContext  uintptr
-	RevertSecurityContext       uintptr
-	MakeSignature               uintptr
-	VerifySignature             uintptr
-	FreeContextBuffer           uintptr
-	QuerySecurityPackageInfoW   uintptr
-	Reserved3                   uintptr
-	Reserved4                   uintptr
-	ExportSecurityContext       uintptr
-	ImportSecurityContextW      uintptr
-	AddCredentialsW             uintptr
-	Reserved8                   uintptr
-	QuerySecurityContextToken   uintptr
-	EncryptMessage              uintptr
-	DecryptMessage              uintptr
-	SetContextAttributesW       uintptr
-	SetCredentialsAttributesW   uintptr
-	Reserved9                   uintptr
+	DwVersion			uint32
+	_				uint32
+	EnumerateSecurityPackagesW	uintptr
+	QueryCredentialsAttributesW	uintptr
+	AcquireCredentialsHandleW	uintptr
+	FreeCredentialsHandle		uintptr
+	Reserved2			uintptr
+	InitializeSecurityContextW	uintptr
+	AcceptSecurityContext		uintptr
+	CompleteAuthToken		uintptr
+	DeleteSecurityContext		uintptr
+	ApplyControlToken		uintptr
+	QueryContextAttributesW		uintptr
+	ImpersonateSecurityContext	uintptr
+	RevertSecurityContext		uintptr
+	MakeSignature			uintptr
+	VerifySignature			uintptr
+	FreeContextBuffer		uintptr
+	QuerySecurityPackageInfoW	uintptr
+	Reserved3			uintptr
+	Reserved4			uintptr
+	ExportSecurityContext		uintptr
+	ImportSecurityContextW		uintptr
+	AddCredentialsW			uintptr
+	Reserved8			uintptr
+	QuerySecurityContextToken	uintptr
+	EncryptMessage			uintptr
+	DecryptMessage			uintptr
+	SetContextAttributesW		uintptr
+	SetCredentialsAttributesW	uintptr
+	Reserved9			uintptr
 }
 
 type TLSClient struct {
-	CredentialHandle      SecHandle
-	ContextHandle         SecHandle
-	CredentialInitialized bool
-	ContextInitialized    bool
-	Sizes                 SecPkgContext_StreamSizes
+	CredentialHandle	SecHandle
+	ContextHandle		SecHandle
+	CredentialInitialized	bool
+	ContextInitialized	bool
+	Sizes			SecPkgContext_StreamSizes
 }
 
 type CERT_CHAIN_PARA struct {
-	CbSize uint32
-	_      [108]byte
+	CbSize	uint32
+	_	[108]byte
 }
 
 type SSL_EXTRA_CERT_CHAIN_POLICY_PARA struct {
-	CbSize         uint32
-	DwAuthType     uint32
-	FdwChecks      uint32
-	_              uint32 // padding
-	PwszServerName *uint16
+	CbSize		uint32
+	DwAuthType	uint32
+	FdwChecks	uint32
+	_		uint32
+	PwszServerName	*uint16
 }
 
 type CERT_CHAIN_POLICY_PARA struct {
-	CbSize            uint32
-	DwFlags           uint32
-	PvExtraPolicyPara uintptr
+	CbSize			uint32
+	DwFlags			uint32
+	PvExtraPolicyPara	uintptr
 }
 
 type CERT_CHAIN_POLICY_STATUS struct {
-	CbSize              uint32
-	DwError             uint32
-	LChainIndex         int32
-	LElementIndex       int32
-	PvExtraPolicyStatus uintptr
+	CbSize			uint32
+	DwError			uint32
+	LChainIndex		int32
+	LElementIndex		int32
+	PvExtraPolicyStatus	uintptr
 }
 
 type DNS_HEADER struct {
-	Id      uint16
-	Flags   uint16
-	QdCount uint16
-	AnCount uint16
-	NsCount uint16
-	ArCount uint16
+	Id	uint16
+	Flags	uint16
+	QdCount	uint16
+	AnCount	uint16
+	NsCount	uint16
+	ArCount	uint16
 }
 
-func htons(v uint16) uint16 { return (v << 8) | (v >> 8) }
+func htons(v uint16) uint16	{ return (v << 8) | (v >> 8) }
 func htonl(v uint32) uint32 {
 	return ((v & 0x000000FF) << 24) | ((v & 0x0000FF00) << 8) |
 		((v & 0x00FF0000) >> 8) | ((v & 0xFF000000) >> 24)
 }
 
 var (
-	ntCreateFile          = wc.GetSyscall(wc.GetHash("NtCreateFile"))
-	ntDeviceIoControlFile = wc.GetSyscall(wc.GetHash("NtDeviceIoControlFile"))
-	ntWaitForSingleObject = wc.GetSyscall(wc.GetHash("NtWaitForSingleObject"))
+	ntCreateFile		= wc.GetSyscall(wc.GetHash("NtCreateFile"))
+	ntDeviceIoControlFile	= wc.GetSyscall(wc.GetHash("NtDeviceIoControlFile"))
+	ntWaitForSingleObject	= wc.GetSyscall(wc.GetHash("NtWaitForSingleObject"))
+	ntClose			= wc.GetSyscall(wc.GetHash("NtClose"))
 )
 
 var sspiTable *SecurityFunctionTableW
 
 var (
-	sspiOnce    sync.Once
-	sspiInitErr error
+	sspiOnce	sync.Once
+	sspiInitErr	error
 )
 
 func initSSPI() error {
@@ -303,15 +304,15 @@ func initSSPI() error {
 }
 
 var (
-	certGetCertificateChain          uintptr
-	certVerifyCertificateChainPolicy uintptr
-	certFreeCertificateChain         uintptr
-	certFreeCertificateContext       uintptr
+	certGetCertificateChain			uintptr
+	certVerifyCertificateChainPolicy	uintptr
+	certFreeCertificateChain		uintptr
+	certFreeCertificateContext		uintptr
 )
 
 var (
-	crypt32Once    sync.Once
-	crypt32InitErr error
+	crypt32Once	sync.Once
+	crypt32InitErr	error
 )
 
 func initCrypt32() error {
@@ -334,7 +335,6 @@ func initCrypt32() error {
 	})
 	return crypt32InitErr
 }
-
 
 type afdSocket struct {
 	handle uintptr
@@ -414,7 +414,7 @@ func afdCreateTCPSocket() (*afdSocket, error) {
 
 func (s *afdSocket) Close() {
 	if s.handle != 0 {
-		wc.Call("kernel32.dll", "CloseHandle", s.handle)
+		wc.IndirectSyscall(ntClose.SSN, ntClose.Address, s.handle)
 		s.handle = 0
 	}
 }
@@ -440,16 +440,17 @@ func (s *afdSocket) Connect(ip uint32, port uint16) error {
 }
 
 func (s *afdSocket) Send(data []byte) error {
+	var ioBuf AFD_IO_BUFFER
+	var req AFD_TRANSFER_REQUEST
+	var out [16]byte
+	req.Buffer = &ioBuf
+	req.BufferCount = 1
+
 	offset := 0
 	for offset < len(data) {
-		ioBuf := new(AFD_IO_BUFFER)
 		ioBuf.Length = uint32(len(data) - offset)
 		ioBuf.Buffer = uintptr(unsafe.Pointer(&data[offset]))
-		req := new(AFD_TRANSFER_REQUEST)
-		req.Buffer = ioBuf
-		req.BufferCount = 1
-		out := make([]byte, 16)
-		info, err := afdIoctl(s.handle, IOCTL_AFD_SEND, unsafe.Pointer(req), uint32(unsafe.Sizeof(*req)), unsafe.Pointer(&out[0]), uint32(len(out)))
+		info, err := afdIoctl(s.handle, IOCTL_AFD_SEND, unsafe.Pointer(&req), uint32(unsafe.Sizeof(req)), unsafe.Pointer(&out[0]), uint32(len(out)))
 		if err != nil {
 			return err
 		}
@@ -458,27 +459,23 @@ func (s *afdSocket) Send(data []byte) error {
 			return errors.New("afd send: 0 bytes sent")
 		}
 		offset += sent
-		runtime.KeepAlive(ioBuf)
-		runtime.KeepAlive(req)
-		runtime.KeepAlive(out)
 	}
 	runtime.KeepAlive(data)
+	runtime.KeepAlive(&req)
 	return nil
 }
 
 func (s *afdSocket) Recv(buf []byte) (int, error) {
-	ioBuf := new(AFD_IO_BUFFER)
+	var ioBuf AFD_IO_BUFFER
 	ioBuf.Length = uint32(len(buf))
 	ioBuf.Buffer = uintptr(unsafe.Pointer(&buf[0]))
-	req := new(AFD_TRANSFER_REQUEST)
-	req.Buffer = ioBuf
+	var req AFD_TRANSFER_REQUEST
+	req.Buffer = &ioBuf
 	req.BufferCount = 1
 	req.TdiFlags = 32
-	out := make([]byte, 16)
-	info, err := afdIoctl(s.handle, IOCTL_AFD_RECV, unsafe.Pointer(req), uint32(unsafe.Sizeof(*req)), unsafe.Pointer(&out[0]), uint32(len(out)))
-	runtime.KeepAlive(ioBuf)
-	runtime.KeepAlive(req)
-	runtime.KeepAlive(out)
+	var out [16]byte
+	info, err := afdIoctl(s.handle, IOCTL_AFD_RECV, unsafe.Pointer(&req), uint32(unsafe.Sizeof(req)), unsafe.Pointer(&out[0]), uint32(len(out)))
+	runtime.KeepAlive(&req)
 	if err != nil {
 		return 0, err
 	}
@@ -495,7 +492,7 @@ func tlsAcquireCredentials(client *TLSClient) error {
 	ret, _, _ := wc.CallG0(sspiTable.AcquireCredentialsHandleW,
 		0,
 		uintptr(unsafe.Pointer(providerName)),
-		uintptr(2), // SECPKG_CRED_OUTBOUND
+		uintptr(2),
 		0,
 		uintptr(unsafe.Pointer(cred)),
 		0, 0,
@@ -733,9 +730,15 @@ func tlsSend(client *TLSClient, sock *afdSocket, plaintext []byte) error {
 }
 
 func tlsRecv(client *TLSClient, sock *afdSocket) ([]byte, error) {
-	var networkBuf []byte
-	var response []byte
+	networkBuf := make([]byte, 0, 16384)
+	response := make([]byte, 0, 16384)
 	recvBuf := make([]byte, 8192)
+
+	var secBufs [4]SecBuffer
+	var desc SecBufferDesc
+	desc.UlVersion = SECBUFFER_VERSION
+	desc.CBuffers = 4
+	desc.PBuffers = &secBufs[0]
 
 	headersFound := false
 	isChunked := false
@@ -752,16 +755,14 @@ func tlsRecv(client *TLSClient, sock *afdSocket) ([]byte, error) {
 		}
 
 		for len(networkBuf) > 0 {
-			secBufs := new([4]SecBuffer)
 			secBufs[0] = SecBuffer{CbBuffer: uint32(len(networkBuf)), BufferType: SECBUFFER_DATA, PvBuffer: uintptr(unsafe.Pointer(&networkBuf[0]))}
 			secBufs[1] = SecBuffer{BufferType: SECBUFFER_EMPTY}
 			secBufs[2] = SecBuffer{BufferType: SECBUFFER_EMPTY}
 			secBufs[3] = SecBuffer{BufferType: SECBUFFER_EMPTY}
-			desc := &SecBufferDesc{UlVersion: SECBUFFER_VERSION, CBuffers: 4, PBuffers: &secBufs[0]}
 
 			ret, _, _ := wc.CallG0(sspiTable.DecryptMessage,
 				uintptr(unsafe.Pointer(&client.ContextHandle)),
-				uintptr(unsafe.Pointer(desc)),
+				uintptr(unsafe.Pointer(&desc)),
 				0, 0)
 			ss := int32(ret)
 
@@ -808,18 +809,21 @@ func tlsRecv(client *TLSClient, sock *afdSocket) ([]byte, error) {
 				return response, errors.New("tls renegotiation not supported")
 			}
 
-			var extraBuf []byte
+			extraStart := -1
+			extraLen := 0
 			for i := 0; i < 4; i++ {
 				if secBufs[i].BufferType == SECBUFFER_EXTRA && secBufs[i].CbBuffer > 0 {
-					extraBuf = make([]byte, secBufs[i].CbBuffer)
-					copy(extraBuf, unsafe.Slice((*byte)(unsafe.Pointer(secBufs[i].PvBuffer)), secBufs[i].CbBuffer))
+					extraStart = len(networkBuf) - int(secBufs[i].CbBuffer)
+					extraLen = int(secBufs[i].CbBuffer)
 					break
 				}
 			}
-			networkBuf = extraBuf
-
-			runtime.KeepAlive(secBufs)
-			runtime.KeepAlive(desc)
+			if extraStart >= 0 {
+				copy(networkBuf[:extraLen], networkBuf[extraStart:])
+				networkBuf = networkBuf[:extraLen]
+			} else {
+				networkBuf = networkBuf[:0]
+			}
 		}
 
 		if n == 0 {
@@ -830,9 +834,15 @@ func tlsRecv(client *TLSClient, sock *afdSocket) ([]byte, error) {
 }
 
 func tlsRecvRaw(client *TLSClient, sock *afdSocket) ([]byte, error) {
-	var networkBuf []byte
-	var response []byte
+	networkBuf := make([]byte, 0, 8192)
+	response := make([]byte, 0, 8192)
 	recvBuf := make([]byte, 8192)
+
+	var secBufs [4]SecBuffer
+	var desc SecBufferDesc
+	desc.UlVersion = SECBUFFER_VERSION
+	desc.CBuffers = 4
+	desc.PBuffers = &secBufs[0]
 
 	for {
 		n, err := sock.Recv(recvBuf)
@@ -847,16 +857,14 @@ func tlsRecvRaw(client *TLSClient, sock *afdSocket) ([]byte, error) {
 		}
 
 		for len(networkBuf) > 0 {
-			secBufs := new([4]SecBuffer)
 			secBufs[0] = SecBuffer{CbBuffer: uint32(len(networkBuf)), BufferType: SECBUFFER_DATA, PvBuffer: uintptr(unsafe.Pointer(&networkBuf[0]))}
 			secBufs[1] = SecBuffer{BufferType: SECBUFFER_EMPTY}
 			secBufs[2] = SecBuffer{BufferType: SECBUFFER_EMPTY}
 			secBufs[3] = SecBuffer{BufferType: SECBUFFER_EMPTY}
-			desc := &SecBufferDesc{UlVersion: SECBUFFER_VERSION, CBuffers: 4, PBuffers: &secBufs[0]}
 
 			ret, _, _ := wc.CallG0(sspiTable.DecryptMessage,
 				uintptr(unsafe.Pointer(&client.ContextHandle)),
-				uintptr(unsafe.Pointer(desc)),
+				uintptr(unsafe.Pointer(&desc)),
 				0, 0)
 			ss := int32(ret)
 
@@ -887,18 +895,21 @@ func tlsRecvRaw(client *TLSClient, sock *afdSocket) ([]byte, error) {
 				return nil, errors.New("tls renegotiation not supported")
 			}
 
-			var extraBuf []byte
+			extraStart := -1
+			extraLen := 0
 			for i := 0; i < 4; i++ {
 				if secBufs[i].BufferType == SECBUFFER_EXTRA && secBufs[i].CbBuffer > 0 {
-					extraBuf = make([]byte, secBufs[i].CbBuffer)
-					copy(extraBuf, unsafe.Slice((*byte)(unsafe.Pointer(secBufs[i].PvBuffer)), secBufs[i].CbBuffer))
+					extraStart = len(networkBuf) - int(secBufs[i].CbBuffer)
+					extraLen = int(secBufs[i].CbBuffer)
 					break
 				}
 			}
-			networkBuf = extraBuf
-
-			runtime.KeepAlive(secBufs)
-			runtime.KeepAlive(desc)
+			if extraStart >= 0 {
+				copy(networkBuf[:extraLen], networkBuf[extraStart:])
+				networkBuf = networkBuf[:extraLen]
+			} else {
+				networkBuf = networkBuf[:0]
+			}
 		}
 
 		if len(response) > 0 {
@@ -1042,6 +1053,46 @@ func buildHTTPGetRequest(host, path string) []byte {
 	return []byte(fmt.Sprintf("GET %s HTTP/1.1\r\nHost: %s\r\nUser-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36\r\nAccept: */*\r\nConnection: close\r\n\r\n", path, host))
 }
 
+func httpsGetWithIP(host string, port uint16, path string, ip uint32) ([]byte, error) {
+	sock, err := afdCreateTCPSocket()
+	if err != nil {
+		return nil, fmt.Errorf("socket: %w", err)
+	}
+	defer sock.Close()
+
+	if err := sock.Bind(); err != nil {
+		return nil, fmt.Errorf("bind: %w", err)
+	}
+	if err := sock.Connect(ip, port); err != nil {
+		return nil, fmt.Errorf("connect: %w", err)
+	}
+
+	var tlsClient TLSClient
+	defer tlsFreeClient(&tlsClient)
+
+	if err := tlsAcquireCredentials(&tlsClient); err != nil {
+		return nil, err
+	}
+
+	hostW, _ := wc.UTF16ptr(host)
+	if err := tlsHandshake(&tlsClient, sock, hostW); err != nil {
+		return nil, err
+	}
+
+	httpReq := buildHTTPGetRequest(host, path)
+	if err := tlsSend(&tlsClient, sock, httpReq); err != nil {
+		return nil, fmt.Errorf("tls send: %w", err)
+	}
+
+	rawResp, err := tlsRecv(&tlsClient, sock)
+	runtime.KeepAlive(hostW)
+	runtime.KeepAlive(httpReq)
+	if err != nil && len(rawResp) == 0 {
+		return nil, fmt.Errorf("tls recv: %w", err)
+	}
+	return rawResp, nil
+}
+
 func httpsGet(host string, port uint16, path string) ([]byte, error) {
 	ip, err := dnsResolve(host)
 	if err != nil {
@@ -1161,3 +1212,4 @@ func DownloadToMemory(url string) ([]byte, error) {
 
 	return nil, errors.New("too many redirects")
 }
+

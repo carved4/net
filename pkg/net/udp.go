@@ -10,44 +10,44 @@ import (
 )
 
 const (
-	SOCK_DGRAM  = 2
-	IPPROTO_UDP = 17
+	SOCK_DGRAM	= 2
+	IPPROTO_UDP	= 17
 
-	IOCTL_AFD_SEND_DATAGRAM = 0x00012023
-	IOCTL_AFD_RECV_DATAGRAM = 0x0001201B
+	IOCTL_AFD_SEND_DATAGRAM	= 0x00012023
+	IOCTL_AFD_RECV_DATAGRAM	= 0x0001201B
 )
 
 type AFD_WSABUF struct {
-	Len uint32
-	_   uint32
-	Buf uintptr
+	Len	uint32
+	_	uint32
+	Buf	uintptr
 }
 
 type TDI_CONNECTION_INFORMATION struct {
-	UserDataLength uintptr
-	UserData       uintptr
-	OptionsLength  uintptr
-	Options        uintptr
-	RemoteAddress  uintptr
-	RemoteAddrLen  uintptr
+	UserDataLength	uintptr
+	UserData	uintptr
+	OptionsLength	uintptr
+	Options		uintptr
+	RemoteAddress	uintptr
+	RemoteAddrLen	uintptr
 }
 
 type AFD_SEND_INFO_UDP struct {
-	BufferArray   *AFD_WSABUF
-	BufferCount   uint32
-	AfdFlags      uint32
-	TdiRequest    [24]byte
-	TdiConnection TDI_CONNECTION_INFORMATION
+	BufferArray	*AFD_WSABUF
+	BufferCount	uint32
+	AfdFlags	uint32
+	TdiRequest	[24]byte
+	TdiConnection	TDI_CONNECTION_INFORMATION
 }
 
 type AFD_RECV_INFO_UDP struct {
-	BufferArray   *AFD_WSABUF
-	BufferCount   uint32
-	AfdFlags      uint32
-	TdiFlags      uint32
-	_             uint32
-	Address       uintptr
-	AddressLength uintptr
+	BufferArray	*AFD_WSABUF
+	BufferCount	uint32
+	AfdFlags	uint32
+	TdiFlags	uint32
+	_		uint32
+	Address		uintptr
+	AddressLength	uintptr
 }
 
 type afdUDPSocket struct {
@@ -125,10 +125,10 @@ func (s *afdUDPSocket) Bind() error {
 }
 
 type TRANSPORT_ADDRESS struct {
-	AddressCount  int32
-	AddressLength uint16
-	AddressType   uint16
-	Address       SOCKADDR_IN
+	AddressCount	int32
+	AddressLength	uint16
+	AddressType	uint16
+	Address		SOCKADDR_IN
 }
 
 func (s *afdUDPSocket) SendTo(data []byte, ip uint32, port uint16) error {
@@ -254,9 +254,9 @@ func (s *afdUDPSocket) Recv(buf []byte) (int, error) {
 }
 
 type ConnectedUDPConn struct {
-	sock   *afdUDPSocket
-	closed bool
-	mu     sync.Mutex
+	sock	*afdUDPSocket
+	closed	bool
+	mu	sync.Mutex
 }
 
 func DialUDPConnected(host string, port uint16, config *ClientConfig) (*ConnectedUDPConn, error) {
@@ -319,3 +319,4 @@ func (c *ConnectedUDPConn) Close() {
 	c.closed = true
 	c.sock.Close()
 }
+

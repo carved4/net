@@ -539,8 +539,8 @@ func TestDialStream_WithCustomHeaders(t *testing.T) {
 	defer conn.Close()
 
 	headers := map[string]string{
-		"X-Stream-Test": "CustomValue",
-		"Accept":        "application/json",
+		"X-Stream-Test":	"CustomValue",
+		"Accept":		"application/json",
 	}
 	resp, err := conn.SendRequest("GET", path, headers, nil, "HeaderTest/1.0")
 	if err != nil {
@@ -564,3 +564,4 @@ func TestPostChunked_LargePayload(t *testing.T) {
 	}
 	t.Logf("large chunked upload received %d bytes response", len(resp.Body))
 }
+

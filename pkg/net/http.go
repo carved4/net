@@ -12,7 +12,7 @@ import (
 type HTTPMethod int
 
 const (
-	MethodGET HTTPMethod = iota
+	MethodGET	HTTPMethod	= iota
 	MethodPOST
 	MethodPUT
 	MethodDELETE
@@ -39,25 +39,25 @@ func (m HTTPMethod) String() string {
 }
 
 type HTTPRequest struct {
-	Method  HTTPMethod
-	URL     string
-	Host    string
-	Port    uint16
-	Path    string
-	Headers map[string]string
-	Body    []byte
+	Method	HTTPMethod
+	URL	string
+	Host	string
+	Port	uint16
+	Path	string
+	Headers	map[string]string
+	Body	[]byte
 }
 
 type HTTPResponse struct {
-	StatusCode int
-	Headers    map[string]string
-	Body       []byte
-	RawData    []byte
+	StatusCode	int
+	Headers		map[string]string
+	Body		[]byte
+	RawData		[]byte
 }
 
 type HTTPClient struct {
-	config   *ClientConfig
-	resolver *DNSResolver
+	config		*ClientConfig
+	resolver	*DNSResolver
 }
 
 func NewHTTPClient(config *ClientConfig) *HTTPClient {
@@ -65,8 +65,8 @@ func NewHTTPClient(config *ClientConfig) *HTTPClient {
 		config = DefaultConfig()
 	}
 	return &HTTPClient{
-		config:   config,
-		resolver: NewDNSResolver(),
+		config:		config,
+		resolver:	NewDNSResolver(),
 	}
 }
 
@@ -318,10 +318,10 @@ func (c *HTTPClient) parseResponse(raw []byte, host string) (*HTTPResponse, stri
 	body = decodeBody(body, te, ce)
 
 	resp := &HTTPResponse{
-		StatusCode: statusCode,
-		Headers:    headers,
-		Body:       body,
-		RawData:    raw,
+		StatusCode:	statusCode,
+		Headers:	headers,
+		Body:		body,
+		RawData:	raw,
 	}
 
 	if statusCode >= 301 && statusCode <= 308 {

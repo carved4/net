@@ -9,11 +9,11 @@ import (
 )
 
 type TLSConn struct {
-	sock      *afdSocket
-	tlsClient *TLSClient
-	host      string
-	closed    bool
-	mu        sync.Mutex
+	sock		*afdSocket
+	tlsClient	*TLSClient
+	host		string
+	closed		bool
+	mu		sync.Mutex
 }
 
 func Dial(host string, port uint16, config *ClientConfig) (*TLSConn, error) {
@@ -74,9 +74,9 @@ func Dial(host string, port uint16, config *ClientConfig) (*TLSConn, error) {
 	}
 
 	return &TLSConn{
-		sock:      sock,
-		tlsClient: tlsClient,
-		host:      host,
+		sock:		sock,
+		tlsClient:	tlsClient,
+		host:		host,
 	}, nil
 }
 
@@ -110,9 +110,9 @@ func (c *TLSConn) Close() {
 }
 
 type RawConn struct {
-	sock   *afdSocket
-	closed bool
-	mu     sync.Mutex
+	sock	*afdSocket
+	closed	bool
+	mu	sync.Mutex
 }
 
 func DialRaw(host string, port uint16, config *ClientConfig) (*RawConn, error) {
@@ -189,11 +189,10 @@ func (c *RawConn) Close() {
 	c.sock.Close()
 }
 
-
 type ConnPool struct {
-	conns  map[string]*TLSConn
-	config *ClientConfig
-	mu     sync.Mutex
+	conns	map[string]*TLSConn
+	config	*ClientConfig
+	mu	sync.Mutex
 }
 
 func NewConnPool(config *ClientConfig) *ConnPool {
@@ -201,8 +200,8 @@ func NewConnPool(config *ClientConfig) *ConnPool {
 		config = DefaultConfig()
 	}
 	return &ConnPool{
-		conns:  make(map[string]*TLSConn),
-		config: config,
+		conns:	make(map[string]*TLSConn),
+		config:	config,
 	}
 }
 

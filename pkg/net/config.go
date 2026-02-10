@@ -9,32 +9,32 @@ import (
 )
 
 const (
-	KEY_READ              = 0x20019
-	REG_SZ                = 1
-	STATUS_SUCCESS        = 0
-	STATUS_BUFFER_TOO_SMALL = 0x80000005
+	KEY_READ		= 0x20019
+	REG_SZ			= 1
+	STATUS_SUCCESS		= 0
+	STATUS_BUFFER_TOO_SMALL	= 0x80000005
 )
 
 var (
-	cachedUA     string
-	cachedUAOnce sync.Once
+	cachedUA	string
+	cachedUAOnce	sync.Once
 )
 
 type TLSConfig struct {
-	SkipVerify bool
-	ServerName string
+	SkipVerify	bool
+	ServerName	string
 }
 
 type HTTPConfig struct {
-	Headers      map[string]string
-	UserAgent    string
-	KeepAlive    bool
-	MaxRedirects int
+	Headers		map[string]string
+	UserAgent	string
+	KeepAlive	bool
+	MaxRedirects	int
 }
 
 type ClientConfig struct {
-	TLS  TLSConfig
-	HTTP HTTPConfig
+	TLS	TLSConfig
+	HTTP	HTTPConfig
 }
 
 func getSystemUserAgent() string {
@@ -61,18 +61,18 @@ func readRegistryUA() string {
 	keyPathW, _ := wc.UTF16ptr(keyPath)
 
 	var objectAttrs struct {
-		Length                   uint32
-		RootDirectory            uintptr
-		ObjectName               uintptr
-		Attributes               uint32
-		SecurityDescriptor       uintptr
-		SecurityQualityOfService uintptr
+		Length				uint32
+		RootDirectory			uintptr
+		ObjectName			uintptr
+		Attributes			uint32
+		SecurityDescriptor		uintptr
+		SecurityQualityOfService	uintptr
 	}
 
 	var unicodeStr struct {
-		Length        uint16
-		MaximumLength uint16
-		Buffer        uintptr
+		Length		uint16
+		MaximumLength	uint16
+		Buffer		uintptr
 	}
 
 	pathLen := 0
@@ -103,9 +103,9 @@ func readRegistryUA() string {
 	valueNameW, _ := wc.UTF16ptr(valueName)
 
 	var valueUnicodeStr struct {
-		Length        uint16
-		MaximumLength uint16
-		Buffer        uintptr
+		Length		uint16
+		MaximumLength	uint16
+		Buffer		uintptr
 	}
 
 	valueLen := 0
@@ -177,10 +177,10 @@ func DefaultConfig() *ClientConfig {
 			SkipVerify: false,
 		},
 		HTTP: HTTPConfig{
-			Headers:      make(map[string]string),
-			UserAgent:    getSystemUserAgent(),
-			KeepAlive:    false,
-			MaxRedirects: 10,
+			Headers:	make(map[string]string),
+			UserAgent:	getSystemUserAgent(),
+			KeepAlive:	false,
+			MaxRedirects:	10,
 		},
 	}
 }
@@ -216,3 +216,4 @@ func (c *ClientConfig) WithMaxRedirects(max int) *ClientConfig {
 	c.HTTP.MaxRedirects = max
 	return c
 }
+

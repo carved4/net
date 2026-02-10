@@ -3,7 +3,7 @@ package net
 type NetErrorType int
 
 const (
-	ErrNone NetErrorType = iota
+	ErrNone	NetErrorType	= iota
 	ErrDNSResolution
 	ErrConnection
 	ErrConnectionRefused
@@ -22,10 +22,10 @@ const (
 )
 
 type NetError struct {
-	Type    NetErrorType
-	Message string
-	Code    int
-	Inner   error
+	Type	NetErrorType
+	Message	string
+	Code	int
+	Inner	error
 }
 
 func (e *NetError) Error() string {
