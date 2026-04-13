@@ -23,13 +23,13 @@ func dohHost(provider uint32) string {
 }
 
 type dnsCache struct {
-	mu	sync.RWMutex
-	entries	map[string]dnsCacheEntry
+	mu      sync.RWMutex
+	entries map[string]dnsCacheEntry
 }
 
 type dnsCacheEntry struct {
-	ips	[]uint32
-	expires	int64
+	ips     []uint32
+	expires int64
 }
 
 var cache = &dnsCache{entries: make(map[string]dnsCacheEntry)}
@@ -55,8 +55,8 @@ func (c *dnsCache) get(hostname string) ([]uint32, bool) {
 func (c *dnsCache) set(hostname string, ips []uint32) {
 	c.mu.Lock()
 	c.entries[hostname] = dnsCacheEntry{
-		ips:		ips,
-		expires:	time.Now().Unix() + dnsCacheTTL,
+		ips:     ips,
+		expires: time.Now().Unix() + dnsCacheTTL,
 	}
 	c.mu.Unlock()
 }
@@ -193,8 +193,8 @@ func dohQueryFast(hostname string, serverHost string, serverIP uint32) ([]uint32
 }
 
 type dohResult struct {
-	ips	[]uint32
-	err	error
+	ips []uint32
+	err error
 }
 
 func dnsResolveParallel(hostname string) ([]uint32, error) {
@@ -269,10 +269,42 @@ func NewDNSResolver() *DNSResolver {
 }
 
 func (r *DNSResolver) Resolve(hostname string) (uint32, error) {
+	if ip, ok := parseIPv4(hostname); ok {
+		return ip, nil
+	}
 	return dnsResolve(hostname)
+}
+
+func parseIPv4(s string) (uint32, bool) {
+	var octets [4]byte
+	var octetIdx int
+	var val int
+	var hasDigit bool
+
+	for i := 0; i <= len(s); i++ {
+		if i == len(s) || s[i] == '.' {
+			if !hasDigit || val > 255 || octetIdx > 3 {
+				return 0, false
+			}
+			octets[octetIdx] = byte(val)
+			octetIdx++
+			val = 0
+			hasDigit = false
+		} else if s[i] >= '0' && s[i] <= '9' {
+			val = val*10 + int(s[i]-'0')
+			hasDigit = true
+		} else {
+			return 0, false
+		}
+	}
+
+	if octetIdx != 4 {
+		return 0, false
+	}
+
+	return uint32(octets[0]) | uint32(octets[1])<<8 | uint32(octets[2])<<16 | uint32(octets[3])<<24, true
 }
 
 func (r *DNSResolver) ResolveAll(hostname string) ([]uint32, error) {
 	return dnsResolveAll(hostname)
 }
-
