@@ -3,8 +3,9 @@ package net
 import "io"
 
 type Config struct {
-	UserAgent	string
-	Headers		map[string]string
+	UserAgent  string
+	Headers    map[string]string
+	SkipVerify bool
 }
 
 func Get(url string, config *Config) ([]byte, error) {
@@ -48,6 +49,7 @@ func toClientConfig(c *Config) *ClientConfig {
 			cc.HTTP.Headers[k] = v
 		}
 	}
+	cc.TLS.SkipVerify = c.SkipVerify
 	return cc
 }
 
@@ -106,4 +108,3 @@ func GetNetErrorCode(err error) int {
 	}
 	return 0
 }
-
