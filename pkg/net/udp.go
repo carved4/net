@@ -54,20 +54,43 @@ type afdUDPSocket struct {
 	handle uintptr
 }
 
-func afdCreateUDPSocket() (*afdUDPSocket, error) {
-	eaName := [16]byte{'A', 'f', 'd', 'O', 'p', 'e', 'n', 'P', 'a', 'c', 'k', 'e', 't', 'X', 'X', 0}
-	ea := new(AFD_OPEN_PACKET_EXTENDED_ATTRIBUTES)
-	ea.ExtendedAttributeNameLength = 15
-	ea.ExtendedAttributeValueLength = 30
-	ea.AddressFamily = AF_INET
-	ea.SocketType = SOCK_DGRAM
-	ea.Protocol = IPPROTO_UDP
-	ea.ExtendedAttributeName = eaName
-	ea.EndpointFlags = 0x1
-	for i := range ea.Unknown1 {
-		ea.Unknown1[i] = 0xff
-	}
+const AFD_ENDPOINT_CONNECTIONLESS = 0x1
 
+func afdCreateUDPSocket() (*afdUDPSocket, error) {
+	sock, err := afdCreateUDPSocketMinimal()
+	if err == nil {
+		return sock, nil
+	}
+	return afdCreateUDPSocketExtended()
+}
+
+func afdCreateUDPSocketMinimal() (*afdUDPSocket, error) {
+	ea := &AFD_OPEN_PACKET_FULL_EA{
+		EaNameLength:  15,
+		EaValueLength: 24,
+		EaName:        [16]byte{'A', 'f', 'd', 'O', 'p', 'e', 'n', 'P', 'a', 'c', 'k', 'e', 't', 'X', 'X', 0},
+		EndpointFlags: AFD_ENDPOINT_CONNECTIONLESS,
+		AddressFamily: AF_INET,
+		SocketType:    SOCK_DGRAM,
+		Protocol:      IPPROTO_UDP,
+	}
+	return afdCreateUDPSocketWithEA(unsafe.Pointer(ea), uint32(unsafe.Sizeof(*ea)))
+}
+
+func afdCreateUDPSocketExtended() (*afdUDPSocket, error) {
+	ea := &AFD_OPEN_PACKET_EXTENDED_ATTRIBUTES{
+		ExtendedAttributeNameLength:  15,
+		ExtendedAttributeValueLength: 30,
+		ExtendedAttributeName:        [16]byte{'A', 'f', 'd', 'O', 'p', 'e', 'n', 'P', 'a', 'c', 'k', 'e', 't', 'X', 'X', 0},
+		EndpointFlags:                AFD_ENDPOINT_CONNECTIONLESS,
+		AddressFamily:                AF_INET,
+		SocketType:                   SOCK_DGRAM,
+		Protocol:                     IPPROTO_UDP,
+	}
+	return afdCreateUDPSocketWithEA(unsafe.Pointer(ea), uint32(unsafe.Sizeof(*ea)))
+}
+
+func afdCreateUDPSocketWithEA(eaPtr unsafe.Pointer, eaSize uint32) (*afdUDPSocket, error) {
 	devicePath, _ := wc.UTF16ptr(`\Device\Afd\Endpoint`)
 	ustr := new(UNICODE_STRING)
 	ustr.Buffer = devicePath
@@ -85,6 +108,7 @@ func afdCreateUDPSocket() (*afdUDPSocket, error) {
 	handle := new(uintptr)
 	iosb := new(IO_STATUS_BLOCK)
 	accessMask := uintptr(0x80000000 | 0x40000000 | 0x00100000)
+	shareAccess := uintptr(0x00000001 | 0x00000002)
 
 	ret, _ := wc.IndirectSyscall(ntCreateFile.SSN, ntCreateFile.Address,
 		uintptr(unsafe.Pointer(handle)),
@@ -92,18 +116,19 @@ func afdCreateUDPSocket() (*afdUDPSocket, error) {
 		uintptr(unsafe.Pointer(oa)),
 		uintptr(unsafe.Pointer(iosb)),
 		0, 0,
-		uintptr(0x00000001|0x00000002),
+		shareAccess,
 		uintptr(FILE_OPEN_IF),
 		uintptr(FILE_SYNCHRONOUS_IO_NONALERT),
-		uintptr(unsafe.Pointer(ea)),
-		uintptr(unsafe.Sizeof(*ea)))
+		uintptr(eaPtr),
+		uintptr(eaSize))
+
+	runtime.KeepAlive(oa)
+	runtime.KeepAlive(ustr)
+	runtime.KeepAlive(devicePath)
+
 	if int32(ret) < 0 {
 		return nil, fmt.Errorf("NtCreateFile AFD UDP failed: 0x%x", ret)
 	}
-	runtime.KeepAlive(oa)
-	runtime.KeepAlive(ustr)
-	runtime.KeepAlive(ea)
-	runtime.KeepAlive(devicePath)
 	return &afdUDPSocket{handle: *handle}, nil
 }
 
@@ -115,9 +140,10 @@ func (s *afdUDPSocket) Close() {
 }
 
 func (s *afdUDPSocket) Bind() error {
-	bind := new(AFD_BIND_SOCKET)
-	bind.Address.Sin_family = AF_INET
-	out := make([]byte, 16)
+	bind := &AFD_BIND_INFO_TL{
+		Address: SOCKADDR_IN{Sin_family: AF_INET},
+	}
+	out := make([]byte, 32)
 	_, err := afdIoctl(s.handle, IOCTL_AFD_BIND, unsafe.Pointer(bind), uint32(unsafe.Sizeof(*bind)), unsafe.Pointer(&out[0]), uint32(len(out)))
 	runtime.KeepAlive(bind)
 	runtime.KeepAlive(out)
@@ -198,10 +224,13 @@ func (s *afdUDPSocket) RecvFrom(buf []byte) (int, uint32, uint16, error) {
 }
 
 func (s *afdUDPSocket) Connect(ip uint32, port uint16) error {
-	req := new(AFD_CONNECT_REQUEST_IPV4)
-	req.Address.Sin_family = AF_INET
-	req.Address.Sin_addr.S_addr = ip
-	req.Address.Sin_port = htons(port)
+	req := &AFD_CONNECT_JOIN_INFO_TL{
+		RemoteAddress: SOCKADDR_IN{
+			Sin_family: AF_INET,
+			Sin_port:   htons(port),
+			Sin_addr:   IN_ADDR{S_addr: ip},
+		},
+	}
 	_, err := afdIoctl(s.handle, IOCTL_AFD_CONNECT, unsafe.Pointer(req), uint32(unsafe.Sizeof(*req)), nil, 0)
 	runtime.KeepAlive(req)
 	return err

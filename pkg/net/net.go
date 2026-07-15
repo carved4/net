@@ -18,14 +18,15 @@ const (
 
 	IOCTL_AFD_BIND    = 0x00012003
 	IOCTL_AFD_CONNECT = 0x00012007
-	IOCTL_AFD_SEND    = 0x0001201F
 	IOCTL_AFD_RECV    = 0x00012017
+	IOCTL_AFD_SEND    = 0x0001201F
 
 	OBJ_CASE_INSENSITIVE         = 0x00000040
 	FILE_OPEN_IF                 = 0x00000003
 	FILE_SYNCHRONOUS_IO_NONALERT = 0x00000020
 
 	EVENT_ALL_ACCESS = 0x1F0003
+	STATUS_PENDING   = 0x00000103
 )
 
 type UNICODE_STRING struct {
@@ -61,6 +62,20 @@ type SOCKADDR_IN struct {
 	Sin_zero   [8]byte
 }
 
+type AFD_OPEN_PACKET_FULL_EA struct {
+	NextEntryOffset        uint32
+	Flags                  byte
+	EaNameLength           byte
+	EaValueLength          uint16
+	EaName                 [16]byte
+	EndpointFlags          uint32
+	GroupID                uint32
+	AddressFamily          uint32
+	SocketType             uint32
+	Protocol               uint32
+	TransportDeviceNameLen uint32
+}
+
 type AFD_OPEN_PACKET_EXTENDED_ATTRIBUTES struct {
 	NextEntryOffset              uint32
 	Flags                        byte
@@ -73,20 +88,24 @@ type AFD_OPEN_PACKET_EXTENDED_ATTRIBUTES struct {
 	SocketType                   uint32
 	Protocol                     uint32
 	SizeOfTransportName          uint32
-	Unknown1                     [9]byte
+	Padding                      [9]byte
 }
 
-type AFD_BIND_SOCKET struct {
-	Flags   uint32
-	Address SOCKADDR_IN
+type AFD_BIND_INFO_TL struct {
+	ShareAccess uint32
+	Address     SOCKADDR_IN
 }
 
-type AFD_CONNECT_REQUEST_IPV4 struct {
-	SharedAccessNamespaceActive uint64
-	RootEndpoint                uint64
-	ConnectEndpoint             uint64
-	Address                     SOCKADDR_IN
+type AFD_BIND_SOCKET = AFD_BIND_INFO_TL
+
+type AFD_CONNECT_JOIN_INFO_TL struct {
+	SanActive       uint64
+	RootEndpoint    uint64
+	ConnectEndpoint uint64
+	RemoteAddress   SOCKADDR_IN
 }
+
+type AFD_CONNECT_REQUEST_IPV4 = AFD_CONNECT_JOIN_INFO_TL
 
 type AFD_IO_BUFFER struct {
 	Length uint32
@@ -343,7 +362,6 @@ type afdSocket struct {
 
 func afdIoctl(sock uintptr, ioctl uint32, inBuf unsafe.Pointer, inLen uint32, outBuf unsafe.Pointer, outLen uint32) (uintptr, error) {
 	iosb := new(IO_STATUS_BLOCK)
-	const STATUS_PENDING = 0x00000103
 	ret, _ := wc.IndirectSyscall(ntDeviceIoControlFile.SSN, ntDeviceIoControlFile.Address,
 		sock, 0, 0, 0,
 		uintptr(unsafe.Pointer(iosb)),
@@ -361,19 +379,39 @@ func afdIoctl(sock uintptr, ioctl uint32, inBuf unsafe.Pointer, inLen uint32, ou
 	return iosb.Information, nil
 }
 
-func afdCreateTCPSocket() (*afdSocket, error) {
-	eaName := [16]byte{'A', 'f', 'd', 'O', 'p', 'e', 'n', 'P', 'a', 'c', 'k', 'e', 't', 'X', 'X', 0}
-	ea := new(AFD_OPEN_PACKET_EXTENDED_ATTRIBUTES)
-	ea.ExtendedAttributeNameLength = 15
-	ea.ExtendedAttributeValueLength = 30
-	ea.AddressFamily = AF_INET
-	ea.SocketType = SOCK_STREAM
-	ea.Protocol = IPPROTO_TCP
-	ea.ExtendedAttributeName = eaName
-	for i := range ea.Unknown1 {
-		ea.Unknown1[i] = 0xff
+func afdCreateSocketGeneric(addressFamily, socketType, protocol uint32) (*afdSocket, error) {
+	sock, err := afdCreateSocketMinimal(addressFamily, socketType, protocol)
+	if err == nil {
+		return sock, nil
 	}
+	return afdCreateSocketExtended(addressFamily, socketType, protocol)
+}
 
+func afdCreateSocketMinimal(addressFamily, socketType, protocol uint32) (*afdSocket, error) {
+	ea := &AFD_OPEN_PACKET_FULL_EA{
+		EaNameLength:           15,
+		EaValueLength:          24,
+		EaName:                 [16]byte{'A', 'f', 'd', 'O', 'p', 'e', 'n', 'P', 'a', 'c', 'k', 'e', 't', 'X', 'X', 0},
+		AddressFamily:          addressFamily,
+		SocketType:             socketType,
+		Protocol:               protocol,
+	}
+	return afdCreateSocketWithEA(unsafe.Pointer(ea), uint32(unsafe.Sizeof(*ea)))
+}
+
+func afdCreateSocketExtended(addressFamily, socketType, protocol uint32) (*afdSocket, error) {
+	ea := &AFD_OPEN_PACKET_EXTENDED_ATTRIBUTES{
+		ExtendedAttributeNameLength:  15,
+		ExtendedAttributeValueLength: 30,
+		ExtendedAttributeName:        [16]byte{'A', 'f', 'd', 'O', 'p', 'e', 'n', 'P', 'a', 'c', 'k', 'e', 't', 'X', 'X', 0},
+		AddressFamily:                addressFamily,
+		SocketType:                   socketType,
+		Protocol:                     protocol,
+	}
+	return afdCreateSocketWithEA(unsafe.Pointer(ea), uint32(unsafe.Sizeof(*ea)))
+}
+
+func afdCreateSocketWithEA(eaPtr unsafe.Pointer, eaSize uint32) (*afdSocket, error) {
 	devicePath, _ := wc.UTF16ptr(`\Device\Afd\Endpoint`)
 	ustr := new(UNICODE_STRING)
 	ustr.Buffer = devicePath
@@ -391,6 +429,7 @@ func afdCreateTCPSocket() (*afdSocket, error) {
 	handle := new(uintptr)
 	iosb := new(IO_STATUS_BLOCK)
 	accessMask := uintptr(0x80000000 | 0x40000000 | 0x00100000)
+	shareAccess := uintptr(0x00000001 | 0x00000002)
 
 	ret, _ := wc.IndirectSyscall(ntCreateFile.SSN, ntCreateFile.Address,
 		uintptr(unsafe.Pointer(handle)),
@@ -398,19 +437,24 @@ func afdCreateTCPSocket() (*afdSocket, error) {
 		uintptr(unsafe.Pointer(oa)),
 		uintptr(unsafe.Pointer(iosb)),
 		0, 0,
-		uintptr(0x00000001|0x00000002),
+		shareAccess,
 		uintptr(FILE_OPEN_IF),
 		uintptr(FILE_SYNCHRONOUS_IO_NONALERT),
-		uintptr(unsafe.Pointer(ea)),
-		uintptr(unsafe.Sizeof(*ea)))
+		uintptr(eaPtr),
+		uintptr(eaSize))
+
+	runtime.KeepAlive(oa)
+	runtime.KeepAlive(ustr)
+	runtime.KeepAlive(devicePath)
+
 	if int32(ret) < 0 {
 		return nil, fmt.Errorf("NtCreateFile AFD failed: 0x%x", ret)
 	}
-	runtime.KeepAlive(oa)
-	runtime.KeepAlive(ustr)
-	runtime.KeepAlive(ea)
-	runtime.KeepAlive(devicePath)
 	return &afdSocket{handle: *handle}, nil
+}
+
+func afdCreateTCPSocket() (*afdSocket, error) {
+	return afdCreateSocketGeneric(AF_INET, SOCK_STREAM, IPPROTO_TCP)
 }
 
 func (s *afdSocket) Close() {
@@ -421,9 +465,10 @@ func (s *afdSocket) Close() {
 }
 
 func (s *afdSocket) Bind() error {
-	bind := new(AFD_BIND_SOCKET)
-	bind.Address.Sin_family = AF_INET
-	out := make([]byte, 16)
+	bind := &AFD_BIND_INFO_TL{
+		Address: SOCKADDR_IN{Sin_family: AF_INET},
+	}
+	out := make([]byte, 32)
 	_, err := afdIoctl(s.handle, IOCTL_AFD_BIND, unsafe.Pointer(bind), uint32(unsafe.Sizeof(*bind)), unsafe.Pointer(&out[0]), uint32(len(out)))
 	runtime.KeepAlive(bind)
 	runtime.KeepAlive(out)
@@ -431,10 +476,13 @@ func (s *afdSocket) Bind() error {
 }
 
 func (s *afdSocket) Connect(ip uint32, port uint16) error {
-	req := new(AFD_CONNECT_REQUEST_IPV4)
-	req.Address.Sin_family = AF_INET
-	req.Address.Sin_addr.S_addr = ip
-	req.Address.Sin_port = htons(port)
+	req := &AFD_CONNECT_JOIN_INFO_TL{
+		RemoteAddress: SOCKADDR_IN{
+			Sin_family: AF_INET,
+			Sin_port:   htons(port),
+			Sin_addr:   IN_ADDR{S_addr: ip},
+		},
+	}
 	_, err := afdIoctl(s.handle, IOCTL_AFD_CONNECT, unsafe.Pointer(req), uint32(unsafe.Sizeof(*req)), nil, 0)
 	runtime.KeepAlive(req)
 	return err
